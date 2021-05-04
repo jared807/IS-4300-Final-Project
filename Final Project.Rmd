@@ -1,0 +1,188 @@
+---
+title: "Final Project"
+author: "Jared A."
+date: "4/30/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+# Required Packages:
+
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org") 
+library(tidyverse)
+library(ggthemes)
+library(rpart)
+
+
+Spam <- "https://vincentarelbundock.github.io/Rdatasets/csv/DAAG/spam7.csv"
+# Get the Spam Data from GitHub
+spam <- read.csv(url(Spam))
+```
+
+## Introduction
+
+In this project we will be using a dataset from GitHub containing data on spam emails to try and predict whether or not an email is spam. This data set contains 7 variables that look at certain aspects of an email and 6 of the 7 variables can be used to predict if an email is spam or not. Below is a listing and explanation of each of the variables in the data set.
+
+__crl.tot__: total length of words in capitals
+
+__dollar__: number of occurrences of the '$' symbol
+
+__bang__: number of occurrences of the '!' symbol
+
+__money__: number of occurrences of the word ‘money’
+
+__n000__: number of occurrences of the string ‘000’
+
+__make__: number of occurrences of the word ‘make’
+
+__yesno__: classification of the email that is either 'y' for spam or 'n' for not spam
+
+Some of these variables are self explanatory by their name where others are not. Because of this we have renamed the variables in the dataset to make them easier to understand.
+
+```{r echo=FALSE, include=TRUE}
+names(spam) <- c("Email_No", "CAPS", "DollarSign", "ExclamationPoints", "Money", "TripleZeros", "Make", "SPAM")
+# Here we renamed the variables in the spam dataset.
+head(spam)
+# Here we look at the top rows in the dataset.
+spam <- as.data.frame(spam)
+# This is done to prevent any possible errors in the future.
+```
+
+Above we are able to see the new variable names as well as examine the first 6 lines of data in the dataset. After looking at the table, we can take variables that we believe to be an important factor in predicting spam and visualize them to learn more. The two variables that we decided to look into further were CAPS and ExclamationPoints.
+
+## Model 1 Visualization
+```{r echo=FALSE, include=TRUE}
+plot1 <- spam %>% ggplot()
+# Allows us to plot the data.
+plot1 + geom_point(aes(ExclamationPoints,CAPS,col=SPAM),size = 0.5) + 
+  ylim(0,2000) + 
+  xlim(0, 1.5) +
+  geom_hline(yintercept = 105, col= "black", size=.5) +
+  geom_vline(xintercept = .15, col= "black", size=.5) +
+  labs(title="Plot of Varibles ExclamationPoints & CAPS",
+       x = "Number of ! Symbols Used",y="Total Lenght of Capital Words") +
+  theme_clean()
+# Here we plotted the variables ExclamationPoints and CAPS colored by SPAM with the splits that we see value in for a model.
+```
+
+Above we can see how the variables are distributed as well as whether they are classified as spam or not. We were able to make splits in the data that are represented by the lines seen in the plot. The splits appear to classify the data fairly accurate but we will now be creating a model based off of these splits to see how accurate they are.
+
+## Model 1 Results
+```{r echo=FALSE, include=TRUE}
+spam$predicted <- ifelse(spam$CAPS < 105,"n", 
+                         ifelse(spam$ExclamationPoints < 0.15,"n",
+                                                       "y"))
+# Used an ifelse function to predict the classification based off of the ExclamationPoints variable.
+T <- table(Predict = spam$predicted,Actual = spam$SPAM)
+# Create a table showing the models results and the actual results side by side.
+T
+```
+
+Here we are able to see how well our model predicted an email to be spam or not compared to the actual value. From this table we are able to see that our model correctly predicted an email not to be spam 2,720 times but also wrongly classified emails that were not spam 898 times. When it comes to predicting emails to be spam our model did this correctly 915 times and incorrectly 68 times. These numbers appear to be better than the classification of non-spam emails but we are going to take a look at the metrics to get a better understating of these results.
+
+```{r echo=FALSE, include=FALSE}
+T <- as.vector(T)
+# Accuracy of the prediction is (num. correctly predicted)/(total)
+accuracy <- (T[1]+T[4])/(T[1]+T[2]+T[3]+T[4]) # correct/total
+# Sensitivity is Pr(predict 1 given actually 1) = 
+sensitivity <- T[4]/(T[3]+T[4])
+# Specificity is Pr(predict 0 given actually 0) = 
+specificity <- T[1]/(T[1]+T[2])
+
+metric <- c("Accuracy","Sensitivity","Specificity")
+value <- c(accuracy,sensitivity,specificity)
+```
+
+```{r echo=FALSE, include=TRUE}
+data.frame(Metric = metric,Value = round(value,3))
+# Shows the metrics previously created.
+```
+
+Above we are able to see our overall accuracy of the model as well as specific accuracies for each of the two classifications. We are able to see that our overall accuracy with this model is 79% providing valuable insights. The next metric of sensitivity is much lower at 50% and this was seen in the previous table showing that we incorrectly predicted an email that was not spam as spam numerous times. However, the specificity accuracy is much higher at 97% showing that our model predicts spam emails correctly very well.
+
+## Model 2 Visualization 1
+
+In our next model we will be attempting to improve the accuracy score using the rpart function to assist in splitting the data. This function looks at each of the variables and builds a decision tree based off of that data. The decision tree made for this dataset can be seen below.
+
+```{r echo=FALSE, include=TRUE}
+fit <- rpart(SPAM ~ CAPS + DollarSign + ExclamationPoints + Money + TripleZeros + Make, data = spam)
+# This function pulls the variables and is able to make splits in the data that are useful in classification.
+plot(fit,margin = .1)
+text(fit,cex = .70,use.n = TRUE)
+# These two function build the decision tree that was created in the rpart function.
+```
+
+In the decision tree we are able to see the variables that were used to make splits as well as the specific point value used in that split. From this we will be creating a 3 variable model and will be visualizing the 3 variables before hand to better understand where the splits are made.
+
+## Model 2 Visualization 2
+```{r echo=FALSE, include=TRUE}
+plot2 <- spam %>% ggplot()
+# Allows us to plot the data.
+plot2 + geom_point(aes(DollarSign,ExclamationPoints,col=SPAM),size = 1) + 
+  geom_hline(yintercept = .0915, col= "black", size=.5) + 
+  geom_vline(xintercept = .0555, col= "black", size=.5) +
+  ylim(0,5) + 
+  xlim(0,1.5) +
+  labs(title =  "Plot of Varibles DollarSigns & CAPS",
+    x = "Number of $ Symbols Used",y="Number of ! Symbols Used") +
+  theme_clean()
+# Here we plotted the DollarSign and ExclamationPoints variables colored by SPAM with the splits from the rpart function. This allows us to visualize what the function determined was best for creating a model.
+```
+
+The chart above shows the emails plotted by the number of '!' and '$' symbols which are the first two variables used in the generated decision tree. The lines on the chart represent the splits that the rpart function generated for each of the variables. We can see that these splits appear to do a pretty good job with the data but it is clear that more variables are needed to get better results.
+
+## Model 2 Visualization 3
+```{r echo=FALSE, include=TRUE}
+plot3 <- spam %>% ggplot()
+# Allows us to plot the data.
+plot3 + geom_point(aes(CAPS,ExclamationPoints,col=SPAM),size = 1) + 
+  geom_hline(yintercept = .0915, col= "black", size=.5) + 
+  geom_vline(xintercept = 85.5, col= "black", size=.5) +
+  ylim(0,3) + 
+  xlim(0,4000) +
+  labs(title="Plot of Varibles CAPS & ExclamationPoints",
+       y = "Number of ! Symbols Used", x="Total Lenght of Capital Words") +
+  theme_clean()
+# Here we plotted the CAPS and ExclamationPoints variables colored by SPAM with the splits from the rpart function. This allows us to visualize what the function determined was best for creating a model.
+  
+```
+
+This chart visualizes the next split in the decision tree which branches off of the ExclamationPoints variable and adds the CAPS variable. We are able to see how these are plotted above as well as the splits determined by the function. Now that these splits have been visualized we need to create a model to see how well a spam email can be predicted.
+
+## Model 2 Results
+```{r echo=FALSE, include=TRUE}
+spam$predicted <- ifelse(spam$DollarSign > .0555,"y",ifelse(spam$ExclamationPoints < .0915,"n",
+                                                           ifelse(spam$CAPS < 85.5,"n", 
+                                                                  "y")))
+# Used an ifelse function to predict the classification based off of the DollarSign, ExclamationPoints, and CAPS variables.
+T <- table(Predict = spam$predicted,Actual = spam$SPAM)
+# Create a table showing the models results and the actual results side by side.
+T
+```
+
+Looking at the table above on model 2, we can see that at first glance there are some significant differences compared to the first model. We can see that this model greatly reduces the number of times that a non-spam email was classified as spam. However, it does appear that this model may perform worse in correctly predicting an email to be spam. To get a better understanding of this and to compare directly to the first model, we are going to take a look at the metrics.
+```{r echo=FALSE, include=FALSE}
+T <- as.vector(T)
+# Accuracy of the prediction is (num. correctly predicted)/(total)
+accuracy <- (T[1]+T[4])/(T[1]+T[2]+T[3]+T[4]) # correct/total
+# Sensitivity is Pr(predict 1 given actually 1) = 
+sensitivity <- T[4]/(T[3]+T[4])
+# Specificity is Pr(predict 0 given actually 0) = 
+specificity <- T[1]/(T[1]+T[2])
+
+metric <- c("Accuracy","Sensitivity","Specificity")
+value <- c(accuracy,sensitivity,specificity)
+```
+
+```{r echo=FALSE, include=TRUE}
+data.frame(Metric = metric,Value = round(value,3))
+# Shows the metrics previously created.
+```
+
+In the metrics above we can see that we have a higher overall accuracy percentage. This higher accuracy came from a much higher sensitivity but did result in a lower specificity compared to the first model.
+
+## Conclusion
+
+In this project we were able to take a look at two different models that helped in predicting whether an email was spam or not. Our first model was able to help in the classification but lacked a high overall accuracy score, making it the lesser of the two models. Our second model was able to provide a much higher overall accuracy and this would be the recommended model for this data set. This model does sacrifice some accuracy in classifying spam emails, but due to its ability to make less errors in classifying than the first model, it is still the preferred model. There are great applications for this model as it could be added to an email system to automatically flag anything that satisfy the conditions of spam seen in this report. Using this model would improve the lives of email users and reduce the success of spam that is in our world today.
+
