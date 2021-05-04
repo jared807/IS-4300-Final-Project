@@ -7,4 +7,5 @@ will also be attached to this repository that contains the same report but refor
 to have better spacing between the pages due to the graphs. This project also requires 
 the packages tidyverse, ggthemes, and rpart to run successfully. The csv file should
 not be required to be downloaded for the rmd file to run properly but is attached in
-case there are any errors or troubles.
+case there are any errors or troubles. When looking at the visuals in this project, 
+some variables were excluded dude to formatting reasons.
